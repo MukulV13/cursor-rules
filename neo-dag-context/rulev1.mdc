@@ -1,0 +1,308 @@
+# Neo System Architecture
+
+## Core Components
+1. Block Processing System
+   - Fundamental processing units for workflow automation
+   - Standardized interfaces supporting scalar and bulk processing
+   - DAG-based execution structure
+
+2. API Layer
+   - RESTful integration capabilities
+   - Versioned APIs (v1.1, v2)
+   - Standardized response formats
+   - Domain-specific endpoints (Customer, Transaction, Loyalty, etc.)
+
+## Block Types
+Each block type serves a specific purpose in the workflow:
+
+| Block Type | Purpose |
+|------------|---------|
+| Script | Custom JavaScript execution |
+| APIRequest | External HTTP communications |
+| Schema | Data validation |
+| Encrypt/Decrypt | Data security (aes128, aes256, aes-cbc-256, rsa) |
+| MongoDB Operations | Database interactions (Get, Put, Delete, Bulk) |
+| HMAC | Authentication code generation |
+| Kafka | Message queue operations |
+| RedisEvict | Cache management |
+| OrgContextSwitch | Organization context handling |
+| OAuth | Authentication management |
+| BlockLibrary | Reusable templates |
+| ValidateSignature | Digital signature verification |
+
+
+# DAO Functions Reference
+
+## Purpose Categories
+1. Data Access & Management
+   - Standardized data access methods
+   - State management across blocks
+   - Type-safe data flow
+
+2. Block Communication
+   - Inter-block data exchange
+   - Execution status tracking
+   - Sequential/parallel execution support
+
+3. Context Management
+   - API request context maintenance
+   - Authentication/authorization handling
+   - Block execution history
+
+4. Error Handling
+   - Error checking and propagation
+   - Partial failure handling
+   - Workflow reliability maintenance
+
+## Common DAO Functions
+
+### Request Context
+```typescript
+// Get complete API request object
+getApiRequest(): {
+    headers: Record<string, string>,
+    queryParams: Record<string, string>,
+    pathParams: Record<string, string>,
+    body: any
+}
+
+// Get request headers
+getHeaders(): Record<string, string>
+
+// Get URL query parameters
+getQueryParams(): Record<string, string>
+
+// Get URL path parameters
+getPathParams(): Record<string, string>
+
+// Get headers for external API calls
+getEffectiveHeaders(): Record<string, string>
+```
+
+### Block Input/Output
+```typescript
+// Get current block's input
+getBlockIn(): {
+    scalarInput: any,
+    blockResponses: IBlockResponse[]
+}
+
+// Get first element of block input
+getIn(): any
+
+// Get output of specified block
+getBlockOut(blockName: string): IBlockResponse[]
+
+// Get block input of specified/current block
+getOut(blockName?: string): any
+
+// Get first element of block output
+getBody(): {
+    neo_body: any,
+    neo_error: any
+}
+
+// Get all block outputs
+getMultiBody(): Array<{
+    neo_body: any,
+    neo_error: any
+}>
+```
+
+### Status and Error Handling
+```typescript
+// Check if block has been visited
+hasBlockBeenVisited(blockName: string): boolean
+
+// Get status code of specified block
+getStatus(blockName: string): number
+
+// Get all status codes
+getMultiStatus(blockName: string): number[]
+
+// Get error information
+getError(blockName: string): {
+    code: number,
+    message: string
+}
+
+// Get all errors
+getMultiError(blockName: string): Array<{
+    code: number,
+    message: string
+}>
+
+// Check for errors
+hasError(blockName: string): boolean
+
+// Check for success
+isSuccess(blockName: string): boolean
+```
+
+### Data Flow Operations
+```typescript
+// Get data flow output
+getDataFlowOut(flowId: string): {
+    flowId: string,
+    data: any,
+    status: string
+}
+
+// Get latest data flow output
+getLatestDataFlowOut(): {
+    flowId: string,
+    data: any,
+    status: string
+}
+
+// Get data flow body
+getDataFlowBody(flowId: string): any
+
+// Get latest data flow body
+getLatestDataFlowBody(): any
+
+// Check for data flow errors
+doesDataFlowHasError(flowId: string): boolean
+doesLatestDataFlowHasError(): boolean
+
+// Get data flow status
+getLatestDataFlowStatus(): {
+    status: "COMPLETED" | "FAILED",
+    error?: {
+        code: number,
+        message: string
+    }
+}
+
+// Get data flow errors
+getDataFlowError(flowId: string): {
+    code: number,
+    message: string
+}
+
+getLatestDataFlowError(): {
+    code: number,
+    message: string
+}
+```
+
+### Configuration Access
+```typescript
+// Get configuration value
+getValueByKey(key: string): Promise<{
+    key: string,
+    value: string
+}>
+
+// Get parent configuration value
+getParentValueByKey(key: string): Promise<{
+    key: string,
+    value: string
+}>
+```
+
+## Usage Examples
+
+### Basic Request Handling
+```typescript
+// Get API request details
+const apiRequest = dao.getApiRequest();
+const headers = dao.getHeaders();
+const queryParams = dao.getQueryParams();
+const pathParams = dao.getPathParams();
+
+// For external API calls
+const effectiveHeaders = dao.getEffectiveHeaders();
+```
+
+### Block Data Flow
+```typescript
+// Access block data
+const blockInput = dao.getBlockIn();
+const input = dao.getIn();
+const output = dao.getOut("previousBlock");
+const body = dao.getBody();
+const allResponses = dao.getMultiBody();
+```
+
+### Error Handling
+```typescript
+// Check block status
+if (dao.isSuccess("validationBlock")) {
+    // Handle success
+} else if (dao.hasError("validationBlock")) {
+    const error = dao.getError("validationBlock");
+    // Handle error
+}
+```
+
+### Data Flow Control
+```typescript
+// Check data flow status
+const flowStatus = dao.getLatestDataFlowStatus();
+if (flowStatus.status === "COMPLETED") {
+    const flowData = dao.getLatestDataFlowBody();
+    // Process data
+} else {
+    const error = dao.getLatestDataFlowError();
+    // Handle error
+}
+```
+
+## Best Practices
+
+1. Always check block status before accessing data
+2. Use appropriate error handling for each block
+3. Leverage bulk operations when processing multiple items
+4. Cache frequently accessed values
+5. Use type-safe access methods when possible
+
+# Best Practices
+
+## DAG Design Principles
+1. Single Entry Point
+   - One source block (source: true)
+   - Schema validation at entry
+   - Clear input validation
+
+2. Error Handling
+   - Dedicated error paths
+   - Comprehensive error logging
+   - Graceful failure handling
+
+3. Block Configuration
+   - Mandatory fields per block type
+   - Appropriate execution strategy
+   - Clear naming conventions
+
+4. Relations Management
+   - Unique relation names
+   - Clear success/failure paths
+   - Proper terminal blocks
+
+## Common Pitfalls to Avoid
+1. Circular Dependencies
+2. Orphaned Blocks
+3. Missing Error Handlers
+4. Incorrect Execution Strategies
+5. Ambiguous Block Names
+
+# Implementation Checklist
+
+## Before Implementation
+- [ ] Identify clear workflow requirements
+- [ ] Plan block structure and dependencies
+- [ ] Define error handling strategy
+- [ ] Document expected inputs/outputs
+
+## During Implementation
+- [ ] Validate source block configuration
+- [ ] Ensure unique block and relation names
+- [ ] Configure proper execution strategies
+- [ ] Implement comprehensive error handling
+
+## Post Implementation
+- [ ] Verify DAG structure
+- [ ] Test all execution paths
+- [ ] Validate error scenarios
+- [ ] Review naming conventions
